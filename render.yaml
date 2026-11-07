@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: successplus-bot
+    runtime: python
+    plan: starter
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --workers 1 --threads 4 --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: REDIS_URL
+        fromService: {type: keyvalue, name: successplus-redis, property: connectionString}
+      - key: BASE_URL
+        value: https://bot.successplus.ir
+      - {key: BLE_TOKEN, sync: false}
+      - {key: ZIBAL_MERCHANT, sync: false}
+      - {key: ZIBAL_PAYOUT_API_KEY, sync: false}
+      - {key: ADMIN_CHAT_IDS, sync: false}
+      - {key: SUPPORT_ADMIN_CHAT_IDS, sync: false}
+      - {key: BLE_WEBHOOK_SECRET, sync: false}
+      - {key: VIP_CHANNEL_LINK, sync: false}
+      - {key: SECRET_KEY, generateValue: true}
+      - {key: PYTHON_VERSION, value: "3.11.9"}
+  - type: keyvalue
+    name: successplus-redis
+    plan: starter
+    region: frankfurt
+    ipAllowList: []
