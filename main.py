@@ -1877,10 +1877,24 @@ def send_daily_to_all_users():
         add_log(f"send_daily_to_all_users error: {e}")
         alert_admins(f"خطا در ارسال روزانه: {e}", throttle_key="daily_broadcast_error")
 
+def check_weekly_challenge_for_all_users():
+    """check_weekly_challenge() takes a user_id, but APScheduler was given it with NO
+    arguments. That made scheduler.add_job() raise ("arguments have not been supplied:
+    user_id") inside the startup try-block, BEFORE scheduler.start() was reached - so the
+    scheduler never started at all and no scheduled job (7am daily plan, trial plans,
+    weekly payout, abandoned-checkout reminders) ever ran. This wrapper runs it per user."""
+    if not acquire_run_lock(f"weekly_challenge:{get_today_tehran_date()}", ttl_seconds=20 * 3600):
+        return
+    for uid in get_all_user_ids():
+        try:
+            check_weekly_challenge(uid)
+        except Exception as e:
+            add_log(f"❌ check_weekly_challenge error for {uid}: {e}")
+
 try:
     scheduler.add_job(send_daily_to_all_users, CronTrigger(hour=7, minute=0, timezone="Asia/Tehran"), id="global_paid_daily", replace_existing=True)
     scheduler.add_job(weekly_payout, CronTrigger(day_of_week=5, hour=8, minute=0, timezone="Asia/Tehran"), id="weekly_payout", replace_existing=True)
-    scheduler.add_job(check_weekly_challenge, CronTrigger(day_of_week=5, hour=7, minute=30, timezone="Asia/Tehran"), id="weekly_challenge_check", replace_existing=True)
+    scheduler.add_job(check_weekly_challenge_for_all_users, CronTrigger(day_of_week=5, hour=7, minute=30, timezone="Asia/Tehran"), id="weekly_challenge_check", replace_existing=True)
     scheduler.start()
     restore_scheduled_jobs_on_startup()
     # Startup catch-up: if this process happens to (re)start right around 7am - which is
