@@ -29,11 +29,19 @@ app.secret_key = os.getenv("SECRET_KEY", "").strip() or os.urandom(32).hex()
 
 try:
     redis_url = os.getenv("REDIS_URL", "").strip()
+    database_url = os.getenv("DATABASE_URL", "").strip()
     if redis_url:
         redis_client = redis.from_url(redis_url, decode_responses=True)
         redis_client.ping()
         redis_available = True
         print("✅ Redis connected")
+    elif database_url:
+        # Redis-compatible storage on PostgreSQL (e.g. Neon) - see pgkv.py.
+        from pgkv import PgRedis
+        redis_client = PgRedis(database_url)
+        redis_client.ping()
+        redis_available = True
+        print("✅ Postgres storage connected")
     else:
         redis_client = None
         redis_available = False
